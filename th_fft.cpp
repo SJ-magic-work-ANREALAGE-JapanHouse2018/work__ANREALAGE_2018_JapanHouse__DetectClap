@@ -71,13 +71,33 @@ void THREAD_FFT::setup()
 
 /******************************
 ******************************/
+float THREAD_FFT::get_AdjustGain(int freq_id)
+{
+	float Gain = Gui_Global->gui__AdjustGain;
+	
+	for(int i = 0; i < NUM__FOCUSED_GAIN_TO_DETECT_CLAP; i++){
+		if(Gui_Global->gui__FocusedGain_FreqWidth[i] != 0){
+			int freq_from = Gui_Global->gui__FocusedGain_FreqFrom[i];
+			int freq_to =  Gui_Global->gui__FocusedGain_FreqFrom[i] + Gui_Global->gui__FocusedGain_FreqWidth[i] - 1;
+			
+			if( (freq_from <= freq_id) && (freq_id <= freq_to) ){
+				Gain = Gui_Global->gui__FocusedGain[i];
+			}
+		}
+	}
+	
+	return Gain;
+}
+
+/******************************
+******************************/
 void THREAD_FFT::update()
 {
 	this->lock();
 	
 	for(int i = 0; i < AUDIO_BUF_SIZE/2; i++){
 		Adjusted__Gain_Monitor[i] = Gain_Monitor[i];
-		Adjusted__Gain_LineIn[i] = Gain_LineIn[i] * Gui_Global->gui__AdjustGain;
+		Adjusted__Gain_LineIn[i] = Gain_LineIn[i] * get_AdjustGain(i);
 		
 		Gain_Environment[i] = Adjusted__Gain_Monitor[i] - Adjusted__Gain_LineIn[i];
 	}
@@ -91,6 +111,7 @@ double THREAD_FFT::get_LevOfEnv_L()
 {
 	// return get_max_of_Env(Gui_Global->gui__Clap_LowFreq_FftFreq_From, Gui_Global->gui__Clap_LowFreq_FftFreq_To);
 	return get_ave_of_Env(Gui_Global->gui__Clap_LowFreq_FftFreq_From, Gui_Global->gui__Clap_LowFreq_FftFreq_To);
+	// return get_ave_of_Env_around_max(Gui_Global->gui__Clap_LowFreq_FftFreq_From, Gui_Global->gui__Clap_LowFreq_FftFreq_To);
 }
 
 /******************************
@@ -99,6 +120,24 @@ double THREAD_FFT::get_LevOfEnv_H()
 {
 	// return get_max_of_Env(Gui_Global->gui__Clap_HighFreq_FftFreq_From, Gui_Global->gui__Clap_HighFreq_FftFreq_To);
 	return get_ave_of_Env(Gui_Global->gui__Clap_HighFreq_FftFreq_From, Gui_Global->gui__Clap_HighFreq_FftFreq_To);
+}
+
+/******************************
+******************************/
+bool THREAD_FFT::IsInMaskedFreq(int freq_id)
+{
+	for(int i = 0; i < NUM__FREQ_MASKS_TO_DETECT_CLAP; i++){
+		if(Gui_Global->gui__ClapMask_FreqWidth[i] != 0){
+			int Freqfrom	= Gui_Global->gui__ClapMask_FreqFrom[i];
+			int FreqTo		= Gui_Global->gui__ClapMask_FreqFrom[i] + Gui_Global->gui__ClapMask_FreqWidth[i] - 1;
+			
+			if((Freqfrom <= freq_id) && (freq_id <= FreqTo)){
+				return true;
+			}
+		}
+	}
+	
+	return false;
 }
 
 /******************************
@@ -113,15 +152,76 @@ double THREAD_FFT::get_max_of_Env(int from, int to)
 	}
 	
 	/********************
+	from - toが全てmasked areaの場合、-1に張り付く.
 	********************/
-	double ret;
-	
-	ret = Gain_Environment[from];
-	for(int i = from + 1; i <= to; i++){
-		if(ret < Gain_Environment[i]) ret = Gain_Environment[i];
+	double ret = -1;
+	for(int i = from; i <= to; i++){
+		if(ret < Gain_Environment[i]){ // IsInMaskedFreq()はcostが高いので、こちらを先に判別.
+			if(!IsInMaskedFreq(i)) ret = Gain_Environment[i];
+		}
 	}
 	
 	return ret;
+}
+
+/******************************
+******************************/
+double THREAD_FFT::get_ave_of_Env_around_max(int from, int to)
+{
+	/********************
+	********************/
+	if((from < 0) || (AUDIO_BUF_SIZE/2 <= from) || (to < 0) || (AUDIO_BUF_SIZE/2 <= to)){
+		ERROR_MSG();
+		std::exit(1);
+	}
+	
+	/********************
+	********************/
+	if(to <= from) return 0;
+	
+	/********************
+	********************/
+	int freq_id_of_max = -1;
+	{
+		double max_val = -1;
+		for(int i = from; i <= to; i++){
+			if(max_val < Gain_Environment[i]){// IsInMaskedFreq()はcostが高いので、こちらを先に判別.
+				if(!IsInMaskedFreq(i)){
+					max_val = Gain_Environment[i];
+					freq_id_of_max = i;
+				}
+			}
+		}
+	}
+	
+	if(freq_id_of_max == -1) return 0;
+	
+	/********************
+	********************/
+	int freq_width = (to - from) * 3 / 5;
+	
+	int _from = freq_id_of_max - freq_width;
+	if(_from < from)	from = from;
+	else				from = _from;
+	
+	int _to = freq_id_of_max + freq_width;
+	if(to < _to)	to = to;
+	else			to = _to;
+	
+	/********************
+	********************/
+	double sum = 0;
+	int num = 0;
+	
+	for(int i = from; i <= to; i++){
+		if(!IsInMaskedFreq(i)){
+			sum += Gain_Environment[i];
+			num++;
+		}
+	}
+	
+	if(num == 0)	return 0;
+	else			return sum / num;
 }
 
 /******************************
@@ -142,12 +242,17 @@ double THREAD_FFT::get_ave_of_Env(int from, int to)
 	/********************
 	********************/
 	double sum = 0;
+	int num = 0;
 	
 	for(int i = from; i <= to; i++){
-		sum += Gain_Environment[i];
+		if(!IsInMaskedFreq(i)){
+			sum += Gain_Environment[i];
+			num++;
+		}
 	}
 	
-	return sum / (to - from + 1);
+	if(num == 0)	return 0;
+	else			return sum / num;
 }
 
 /******************************
@@ -157,11 +262,11 @@ void THREAD_FFT::get_ParamToDraw(double DispMonitor[], double DispLinein[], doub
 	if(size < AUDIO_BUF_SIZE/2) return;
 	
 	for(int i = 0; i < AUDIO_BUF_SIZE/2; i++){
-		DispMonitor[i] = ofMap(Adjusted__Gain_Monitor[i], 0, Gui_Global->gui__Disp_FftGainMax_Monitor, 0, ofGetHeight()/4);
-		DispLinein[i] = ofMap(Adjusted__Gain_LineIn[i], 0, Gui_Global->gui__Disp_FftGainMax_Monitor, 0, ofGetHeight()/4);
+		DispMonitor[i] = ofMap(Adjusted__Gain_Monitor[i], 0, Gui_Global->gui__DispMax_GainMonitor, 0, ofGetHeight()/NUM_SPLIT_DISP);
+		DispLinein[i] = ofMap(Adjusted__Gain_LineIn[i], 0, Gui_Global->gui__DispMax_GainMonitor, 0, ofGetHeight()/NUM_SPLIT_DISP);
 		
-		DispEnvironment_L[i] = ofMap(Gain_Environment[i], -Gui_Global->gui__Disp_FftGainMax_Diff_LowFreq, Gui_Global->gui__Disp_FftGainMax_Diff_LowFreq, -ofGetHeight()/4, ofGetHeight()/4);
-		DispEnvironment_H[i] = ofMap(Gain_Environment[i], -Gui_Global->gui__Disp_FftGainMax_Diff_HighFreq, Gui_Global->gui__Disp_FftGainMax_Diff_HighFreq, -ofGetHeight()/4, ofGetHeight()/4);
+		DispEnvironment_L[i] = ofMap(Gain_Environment[i], -Gui_Global->gui__DispMax_GainEnv_LowFreq, Gui_Global->gui__DispMax_GainEnv_LowFreq, -ofGetHeight()/NUM_SPLIT_DISP, ofGetHeight()/NUM_SPLIT_DISP);
+		DispEnvironment_H[i] = ofMap(Gain_Environment[i], -Gui_Global->gui__DispMax_GainEnv_HighFreq, Gui_Global->gui__DispMax_GainEnv_HighFreq, -ofGetHeight()/NUM_SPLIT_DISP, ofGetHeight()/NUM_SPLIT_DISP);
 	}
 }
 

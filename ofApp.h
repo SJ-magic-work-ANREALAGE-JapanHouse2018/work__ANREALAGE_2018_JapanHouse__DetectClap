@@ -74,7 +74,17 @@ private:
 		NUM_AUTOGAIN_LOOPS = 10,
 	};
 	
+	/*
 	enum STATE_CLAP{
+		STATE_CLAP_WAIT,
+		STATE_CLAP_ECHO,
+	};
+	*/
+	enum STATE_CLAP{
+		STATE_CLAP_WAIT_RISE,
+		STATE_CLAP_WAIT_FALL,
+		STATE_CLAP_TRY_CLAP,
+		
 		STATE_CLAP_WAIT,
 		STATE_CLAP_ECHO,
 	};
@@ -118,6 +128,9 @@ private:
 	
 	/********************
 	********************/
+	float now;
+	float LastInt;
+	
 	bool b_DispGui;
 	bool b_PauseGraph;
 	
@@ -126,6 +139,12 @@ private:
 	STATE_CLAP StateClap_L;
 	STATE_CLAP StateClap_H;
 	STATE_CLAP StateClap_AND;
+	float t_clap_ChangeState_L;
+	float t_clap_ChangeState_H;
+	float t_clap_L;
+	float t_clap_H;
+	const float thresh__t_clap;
+	const float duration_TryClap;
 	
 	ofTrueTypeFont font[NUM_FONT_SIZE];
 	
@@ -143,6 +162,8 @@ private:
 	
 	double Lev_OfEnvironment_L;
 	double Lev_OfEnvironment_H;
+	double delta__Lev_OfEnvironment_L;
+	double delta__Lev_OfEnvironment_H;
 	
 	VBO_SET Vboset_Monitor;
 	VBO_SET Vboset_Linein;
@@ -151,6 +172,8 @@ private:
 	VBO_SET Vboset_Clap_L;
 	VBO_SET Vboset_Clap_H;
 	VBO_SET Vboset_Clap_AND;
+	VBO_SET Vboset_DeltaDiff_L;
+	VBO_SET Vboset_DeltaDiff_H;
 	
 	int png_id;
 	
@@ -173,7 +196,7 @@ private:
 	
 	void ReStart();
 	
-	void StateChart_Clap_LH(STATE_CLAP& StateClap, float thresh_L, float thresh_H, float Lev_OfEnvironment);
+	void StateChart_Clap_LH(STATE_CLAP& StateClap, float thresh_H, float Lev_OfEnvironment, float& t_clap_ChangeState, float& t_clap);
 	void StateChart_Clap_AND();
 	
 	/********************
@@ -197,7 +220,13 @@ private:
 	void draw_StateChart_Clap();
 	
 	void draw_ClapThresh(float y_threshL, float y_threshH, float Disp_x_max, float map_Disp_y_Max);
+	void draw_DeltaClap_Thresh(float y_threshH, float Disp_x_max, float map_Disp_y_Max);
 	void draw_LevOfEnv(int x_from, int x_to, float Lev_OfEnvironment, float Disp_x_max, float map_Disp_y_max);
+	void draw_FreqMask(float Disp_x_max);
+	void draw_FocusedGain_Area(float Disp_x_max);
+	
+	void draw_DeltaEnv_L();
+	void draw_DeltaEnv_H();
 	
 	void draw_time();
 		

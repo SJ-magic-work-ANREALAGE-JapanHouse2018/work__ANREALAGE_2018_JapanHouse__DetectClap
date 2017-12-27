@@ -54,7 +54,11 @@ private:
 	
 	double get_max_of_Env(int from, int to);
 	double get_ave_of_Env(int from, int to);
+	double get_ave_of_Env_around_max(int from, int to);
 	void AudioSample_fft_LPF_saveToArray(const vector<float> &AudioSample, double Gain[], float dt);
+	
+	bool IsInMaskedFreq(int freq_id);
+	float get_AdjustGain(int freq_id);
 	
 public:
 	/****************************************

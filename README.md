@@ -6,9 +6,9 @@
 *	oF : 0.9.0
 
 ## add on ##
-ofxGui
-ofxOsc
-ofxXmlSettings
+ofxGui  
+ofxOsc  
+ofxXmlSettings  
 
 ## Contents ##
 会場内音楽を再生.  

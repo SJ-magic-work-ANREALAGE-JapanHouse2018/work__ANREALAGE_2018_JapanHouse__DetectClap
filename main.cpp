@@ -15,7 +15,7 @@ int main( int argc, char** argv ){
 	if(argc < 3){
 		/********************
 		********************/
-		printf("> exe mode AudioInput AudioOutput\n");
+		printf("> exe AudioInput AudioOutput\n");
 		
 		/********************
 		********************/
