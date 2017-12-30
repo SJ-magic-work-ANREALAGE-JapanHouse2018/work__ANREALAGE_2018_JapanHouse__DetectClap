@@ -16,7 +16,7 @@ ofApp::ofApp(int _soundStream_Input_DeviceId, int _soundStream_Output_DeviceId)
 , StateClap_L(STATE_CLAP_WAIT_RISE)
 , StateClap_H(STATE_CLAP_WAIT_RISE)
 , StateClap_AND(STATE_CLAP_WAIT)
-, thresh__t_clap(0.1)
+, thresh__t_clap(0.15)
 , t_clap_L(thresh__t_clap + 10)
 , t_clap_H(thresh__t_clap + 10)
 , t_clap_ChangeState_L(0)
@@ -24,18 +24,26 @@ ofApp::ofApp(int _soundStream_Input_DeviceId, int _soundStream_Output_DeviceId)
 , duration_TryClap(0.07)
 , png_id(0)
 , b_PauseGraph(false)
-, Osc_video("127.0.0.1", 12345, 12346)
+// , Osc_video("127.0.0.1", 12345, 12346)
 , LastInt(0)
 , Lev_OfEnvironment_L(0)
 , Lev_OfEnvironment_H(0)
 , delta__Lev_OfEnvironment_L(0)
 , delta__Lev_OfEnvironment_H(0)
 {
+	/********************
+	********************/
 	fp = fopen("../../../data/AutoCalib.csv", "w");
 	
 	/********************
 	********************/
 	srand((unsigned) time(NULL));
+	
+	/********************
+	********************/
+	Osc[OSC_TARGET__VIDEO].setup("127.0.0.1", 12345, 12346);
+	Osc[OSC_TARGET__CLAPON].setup("127.0.0.1", 12349, 12350);
+	Osc[OSC_TARGET__STROBE].setup("127.0.0.1", 12347, 12348);
 	
 	/********************
 	********************/
@@ -349,9 +357,11 @@ void ofApp::update(){
 	
 	/********************
 	********************/
-	while(Osc_video.OscReceive.hasWaitingMessages()){
-		ofxOscMessage m_receive;
-		Osc_video.OscReceive.getNextMessage(&m_receive); // 読み捨て 
+	for(int i = 0; i < NUM_OSC_TARGET; i++){
+		while(Osc[i].OscReceive.hasWaitingMessages()){
+			ofxOscMessage m_receive;
+			Osc[i].OscReceive.getNextMessage(&m_receive); // 読み捨て 
+		}
 	}
 	
 	/********************
@@ -442,7 +452,9 @@ void ofApp::StateChart_Clap_AND(){
 				ofxOscMessage m;
 				m.setAddress("/DetectClap");
 				m.addIntArg(0); // dummy.
-				Osc_video.OscSend.sendMessage(m);
+				for(int i = 0; i < NUM_OSC_TARGET; i++){
+					Osc[i].OscSend.sendMessage(m);
+				}
 			}
 			break;
 			
@@ -1094,7 +1106,9 @@ void ofApp::keyPressed(int key){
 			ofxOscMessage m;
 			m.setAddress("/DetectClap");
 			m.addIntArg(0); // dummy.
-			Osc_video.OscSend.sendMessage(m);
+			for(int i = 0; i < NUM_OSC_TARGET; i++){
+				Osc[i].OscSend.sendMessage(m);
+			}
 		}
 			break;
 			

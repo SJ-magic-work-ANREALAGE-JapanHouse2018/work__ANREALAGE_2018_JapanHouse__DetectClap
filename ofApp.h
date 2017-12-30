@@ -97,6 +97,14 @@ private:
 		NUM_FONT_SIZE,
 	};
 	
+	enum{
+		OSC_TARGET__VIDEO,
+		OSC_TARGET__CLAPON,
+		OSC_TARGET__STROBE,
+		
+		NUM_OSC_TARGET,
+	};
+	
 	/****************************************
 	parameter
 	****************************************/
@@ -110,7 +118,7 @@ private:
 	
 	AUDIO_SAMPLE AudioSample;
 	
-	OSC_TARGET Osc_video;
+	OSC_TARGET Osc[NUM_OSC_TARGET];
 	
 	/********************
 	********************/
