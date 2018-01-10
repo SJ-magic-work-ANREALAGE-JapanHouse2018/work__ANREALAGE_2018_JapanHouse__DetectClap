@@ -7,29 +7,35 @@ int main( int argc, char** argv ){
 
 	/********************
 	********************/
+	int BootMode;
 	int soundStream_Input_DeviceId;
 	int soundStream_Output_DeviceId;
 
 	/********************
 	********************/
-	if(argc < 3){
+	if(argc < 4){
 		/********************
 		********************/
-		printf("> exe AudioInput AudioOutput\n");
+		printf("> exe BootMode AudioInput AudioOutput\n");
+		printf("> BootMode\n");
+		printf("\t0:Release\n");
+		printf("\t1:Debug\n");
 		
 		/********************
 		********************/
+		BootMode = 0;
 		soundStream_Input_DeviceId = -1;
 		soundStream_Output_DeviceId = -1;
 		
-		ofRunApp(new ofApp(soundStream_Input_DeviceId, soundStream_Output_DeviceId));
+		ofRunApp(new ofApp(BootMode, soundStream_Input_DeviceId, soundStream_Output_DeviceId));
 		
 	}else{
 		/********************
 		********************/
-		soundStream_Input_DeviceId = atoi(argv[1]);
-		soundStream_Output_DeviceId = atoi(argv[2]);
+		BootMode = atoi(argv[1]);
+		soundStream_Input_DeviceId = atoi(argv[2]);
+		soundStream_Output_DeviceId = atoi(argv[3]);
 		
-		ofRunApp(new ofApp(soundStream_Input_DeviceId, soundStream_Output_DeviceId));
+		ofRunApp(new ofApp(BootMode, soundStream_Input_DeviceId, soundStream_Output_DeviceId));
 	}
 }

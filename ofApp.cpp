@@ -8,7 +8,7 @@
 
 /******************************
 ******************************/
-ofApp::ofApp(int _soundStream_Input_DeviceId, int _soundStream_Output_DeviceId)
+ofApp::ofApp(int _BootMode, int _soundStream_Input_DeviceId, int _soundStream_Output_DeviceId)
 : soundStream_Input_DeviceId(_soundStream_Input_DeviceId)
 , soundStream_Output_DeviceId(_soundStream_Output_DeviceId)
 , b_DispGui(true)
@@ -16,9 +16,10 @@ ofApp::ofApp(int _soundStream_Input_DeviceId, int _soundStream_Output_DeviceId)
 , StateClap_L(STATE_CLAP_WAIT_RISE)
 , StateClap_H(STATE_CLAP_WAIT_RISE)
 , StateClap_AND(STATE_CLAP_WAIT)
-, thresh__t_clap(0.15)
-, t_clap_L(thresh__t_clap + 10)
-, t_clap_H(thresh__t_clap + 10)
+, thresh__t_clap_L(0.12)
+, thresh__t_clap_H(0.1)
+, t_clap_L(thresh__t_clap_L + 10)
+, t_clap_H(thresh__t_clap_H + 10)
 , t_clap_ChangeState_L(0)
 , t_clap_ChangeState_H(0)
 , duration_TryClap(0.07)
@@ -30,10 +31,13 @@ ofApp::ofApp(int _soundStream_Input_DeviceId, int _soundStream_Output_DeviceId)
 , Lev_OfEnvironment_H(0)
 , delta__Lev_OfEnvironment_L(0)
 , delta__Lev_OfEnvironment_H(0)
+, ofs_x_ReadCursor(0)
 {
 	/********************
 	********************/
-	fp = fopen("../../../data/AutoCalib.csv", "w");
+	BootMode = BOOTMODE(_BootMode);
+	
+	fp_Log = fopen("../../../data/Log.csv", "w");
 	
 	/********************
 	********************/
@@ -91,7 +95,7 @@ ofApp::ofApp(int _soundStream_Input_DeviceId, int _soundStream_Output_DeviceId)
 ******************************/
 ofApp::~ofApp()
 {
-	fclose(fp);
+	fclose(fp_Log);
 }
 
 /******************************
@@ -136,7 +140,7 @@ void ofApp::setup(){
 	********************/
 	ofSetWindowTitle("ANREALAGE:Sound");
 	ofSetVerticalSync(true);
-	ofSetFrameRate(30);
+	ofSetFrameRate(60);
 	ofSetWindowShape(WIDTH, HEIGHT);
 	ofSetEscapeQuitsApp(false);
 	
@@ -236,27 +240,87 @@ void ofApp::RefreshVerts()
 	
 	/********************
 	********************/
-	for(int i = 0; i < NUM_TIME_POINTS - 1; i++){
-		Vboset_Clap_L.VboVerts[i].set(i, Vboset_Clap_L.VboVerts[i+1].y);
-		Vboset_Clap_H.VboVerts[i].set(i, Vboset_Clap_H.VboVerts[i+1].y);
-		Vboset_Clap_AND.VboVerts[i].set(i, Vboset_Clap_AND.VboVerts[i+1].y);
+	if(!b_PauseGraph){
+		for(int i = 0; i < NUM_TIME_POINTS - 1; i++){
+			Vboset_Clap_L.VboVerts[i].set(i, Vboset_Clap_L.VboVerts[i+1].y);
+			Vboset_Clap_H.VboVerts[i].set(i, Vboset_Clap_H.VboVerts[i+1].y);
+			Vboset_Clap_AND.VboVerts[i].set(i, Vboset_Clap_AND.VboVerts[i+1].y);
+			
+			Vboset_DeltaDiff_L.VboVerts[i].set(i, Vboset_DeltaDiff_L.VboVerts[i+1].y);
+			Vboset_DeltaDiff_H.VboVerts[i].set(i, Vboset_DeltaDiff_H.VboVerts[i+1].y);
+		}
+		if(StateClap_L == STATE_CLAP_WAIT_FALL)		Vboset_Clap_L.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofGetHeight()/NUM_SPLIT_DISP/3/2 );
+		else if(StateClap_L == STATE_CLAP_TRY_CLAP)	Vboset_Clap_L.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofGetHeight()/NUM_SPLIT_DISP/3/2/2 );
+		else										Vboset_Clap_L.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, 0 );
 		
-		Vboset_DeltaDiff_L.VboVerts[i].set(i, Vboset_DeltaDiff_L.VboVerts[i+1].y);
-		Vboset_DeltaDiff_H.VboVerts[i].set(i, Vboset_DeltaDiff_H.VboVerts[i+1].y);
+		if(StateClap_H == STATE_CLAP_WAIT_FALL)		Vboset_Clap_H.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofGetHeight()/NUM_SPLIT_DISP/3/2 );
+		else if(StateClap_H == STATE_CLAP_TRY_CLAP)	Vboset_Clap_H.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofGetHeight()/NUM_SPLIT_DISP/3/2/2 );
+		else										Vboset_Clap_H.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, 0 );
+		
+		if(StateClap_AND == STATE_CLAP_ECHO)	Vboset_Clap_AND.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofGetHeight()/NUM_SPLIT_DISP/3/2 );
+		else									Vboset_Clap_AND.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, 0 );
+		
+		Vboset_DeltaDiff_L.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofMap(delta__Lev_OfEnvironment_L, -Gui_Global->gui__DispMax_DeltaEnv_L, Gui_Global->gui__DispMax_DeltaEnv_L, -ofGetHeight()/NUM_SPLIT_DISP/2, ofGetHeight()/NUM_SPLIT_DISP/2) );
+		Vboset_DeltaDiff_H.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofMap(delta__Lev_OfEnvironment_H, -Gui_Global->gui__DispMax_DeltaEnv_H, Gui_Global->gui__DispMax_DeltaEnv_H, -ofGetHeight()/NUM_SPLIT_DISP/2, ofGetHeight()/NUM_SPLIT_DISP/2) );
 	}
-	if(StateClap_L == STATE_CLAP_WAIT_FALL)		Vboset_Clap_L.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofGetHeight()/NUM_SPLIT_DISP/3/2 );
-	else if(StateClap_L == STATE_CLAP_TRY_CLAP)	Vboset_Clap_L.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofGetHeight()/NUM_SPLIT_DISP/3/2/2 );
-	else										Vboset_Clap_L.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, 0 );
-	
-	if(StateClap_H == STATE_CLAP_WAIT_FALL)		Vboset_Clap_H.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofGetHeight()/NUM_SPLIT_DISP/3/2 );
-	else if(StateClap_H == STATE_CLAP_TRY_CLAP)	Vboset_Clap_H.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofGetHeight()/NUM_SPLIT_DISP/3/2/2 );
-	else										Vboset_Clap_H.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, 0 );
-	
-	if(StateClap_AND == STATE_CLAP_ECHO)	Vboset_Clap_AND.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofGetHeight()/NUM_SPLIT_DISP/3/2 );
-	else									Vboset_Clap_AND.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, 0 );
-	
-	Vboset_DeltaDiff_L.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofMap(delta__Lev_OfEnvironment_L, -Gui_Global->gui__DispMax_DeltaEnv_L, Gui_Global->gui__DispMax_DeltaEnv_L, -ofGetHeight()/NUM_SPLIT_DISP/2, ofGetHeight()/NUM_SPLIT_DISP/2) );
-	Vboset_DeltaDiff_H.VboVerts[NUM_TIME_POINTS - 1].set( NUM_TIME_POINTS - 1, ofMap(delta__Lev_OfEnvironment_H, -Gui_Global->gui__DispMax_DeltaEnv_H, Gui_Global->gui__DispMax_DeltaEnv_H, -ofGetHeight()/NUM_SPLIT_DISP/2, ofGetHeight()/NUM_SPLIT_DISP/2) );
+}
+
+/******************************
+******************************/
+void ofApp::ReverseFromVbo_DeltaDiff_L(int id, char* buf)
+{
+	if( (id < 0) || (Vboset_DeltaDiff_L.VboVerts.size() <= id) ){
+		sprintf(buf, "---");
+	}else{
+		ofVec3f VboVal = Vboset_DeltaDiff_L.VboVerts[id];
+		double val = ofMap(VboVal.y, -ofGetHeight()/NUM_SPLIT_DISP/2, ofGetHeight()/NUM_SPLIT_DISP/2, -Gui_Global->gui__DispMax_DeltaEnv_L, Gui_Global->gui__DispMax_DeltaEnv_L);
+		sprintf(buf, "%e", val);
+	}
+}
+
+/******************************
+******************************/
+void ofApp::ReverseFromVbo_DeltaDiff_H(int id, char* buf)
+{
+	if( (id < 0) || (Vboset_DeltaDiff_H.VboVerts.size() <= id) ){
+		sprintf(buf, "---");
+	}else{
+		ofVec3f VboVal = Vboset_DeltaDiff_H.VboVerts[id];
+		double val = ofMap(VboVal.y, -ofGetHeight()/NUM_SPLIT_DISP/2, ofGetHeight()/NUM_SPLIT_DISP/2, -Gui_Global->gui__DispMax_DeltaEnv_H, Gui_Global->gui__DispMax_DeltaEnv_H);
+		sprintf(buf, "%e", val);
+	}
+}
+
+/******************************
+******************************/
+void ofApp::ReverseFromVbo_StateClap(int id, char* buf)
+{
+	if( (id < 0) || (Vboset_Clap_H.VboVerts.size() <= id) ){
+		sprintf(buf, "---");
+	}else{
+		char buf_L[BUF_SIZE];
+		char buf_H[BUF_SIZE];
+		char buf_AND[BUF_SIZE];
+		
+		const int ofs = 2;
+		
+		ofVec3f VboVal = Vboset_Clap_L.VboVerts[id];
+		if(ofGetHeight()/NUM_SPLIT_DISP/3/2 - ofs < VboVal.y)			sprintf(buf_L, "WAIT_FALL");
+		else if(ofGetHeight()/NUM_SPLIT_DISP/3/2/2 - ofs < VboVal.y)	sprintf(buf_L, "TRY_CLAP");
+		else															sprintf(buf_L, "WAIT_RISE");
+		
+		VboVal = Vboset_Clap_H.VboVerts[id];
+		if(ofGetHeight()/NUM_SPLIT_DISP/3/2 - ofs < VboVal.y)			sprintf(buf_H, "WAIT_FALL");
+		else if(ofGetHeight()/NUM_SPLIT_DISP/3/2/2 - ofs < VboVal.y)	sprintf(buf_H, "WAIT_CLAP");
+		else															sprintf(buf_H, "WAIT_RISE");
+		
+		
+		VboVal = Vboset_Clap_AND.VboVerts[id];
+		if(ofGetHeight()/NUM_SPLIT_DISP/3/2 - ofs < VboVal.y)			sprintf(buf_AND, "ECHO");
+		else															sprintf(buf_AND, "WAIT");
+		
+		sprintf(buf, "L:%-15s  H:%-15s  A:%-15s", buf_L, buf_H, buf_AND);
+	}
 }
 
 /******************************
@@ -355,6 +419,10 @@ void ofApp::update(){
 	********************/
 	now = ofGetElapsedTimef();
 	
+	if(BootMode == BOOTMODE__DEBUG){
+		if(now < 30.0) fprintf(fp_Log, "%f,", now);
+	}
+	
 	/********************
 	********************/
 	for(int i = 0; i < NUM_OSC_TARGET; i++){
@@ -385,12 +453,8 @@ void ofApp::update(){
 	
 	/********************
 	********************/
-	/*
-	StateChart_Clap_LH(StateClap_L, Gui_Global->gui__Clap_LowFreq_Thresh_L, Gui_Global->gui__Clap_LowFreq_Thresh_H, Lev_OfEnvironment_L);
-	StateChart_Clap_LH(StateClap_H, Gui_Global->gui__Clap_HighFreq_Thresh_L, Gui_Global->gui__Clap_HighFreq_Thresh_H, Lev_OfEnvironment_H);
-	*/
-	StateChart_Clap_LH(StateClap_L, Gui_Global->gui__DeltaClap_LowFreq_Thresh_H, delta__Lev_OfEnvironment_L, t_clap_ChangeState_L, t_clap_L);
-	StateChart_Clap_LH(StateClap_H, Gui_Global->gui__DeltaClap_HighFreq_Thresh_H, delta__Lev_OfEnvironment_H, t_clap_ChangeState_H, t_clap_H);
+	StateChart_Clap_LH(StateClap_L, Gui_Global->gui__DeltaClap_LowFreq_Thresh_H, delta__Lev_OfEnvironment_L, t_clap_ChangeState_L, t_clap_L, thresh__t_clap_L);
+	StateChart_Clap_LH(StateClap_H, Gui_Global->gui__DeltaClap_HighFreq_Thresh_H, delta__Lev_OfEnvironment_H, t_clap_ChangeState_H, t_clap_H, thresh__t_clap_H);
 	StateChart_Clap_AND();
 	
 	/********************
@@ -400,7 +464,7 @@ void ofApp::update(){
 
 /******************************
 ******************************/
-void ofApp::StateChart_Clap_LH(STATE_CLAP& StateClap, float thresh_H, float Lev_OfEnvironment, float& t_clap_ChangeState, float& t_clap){
+void ofApp::StateChart_Clap_LH(STATE_CLAP& StateClap, float thresh_H, float Lev_OfEnvironment, float& t_clap_ChangeState, float& t_clap, float thresh__t_clap){
 	switch(StateClap){
 		case STATE_CLAP_WAIT_RISE:
 			if(thresh_H < Lev_OfEnvironment){
@@ -414,9 +478,11 @@ void ofApp::StateChart_Clap_LH(STATE_CLAP& StateClap, float thresh_H, float Lev_
 				t_clap = ofGetElapsedTimef() - t_clap_ChangeState;
 				t_clap_ChangeState = ofGetElapsedTimef();
 				
-#ifndef SJ_RELEASE
-				printf("> clap time: %f (thresh_H = %f)\n", t_clap, thresh_H); // thresh_H の値で、L or Hを見分けるため.
-#endif
+				if(BootMode == BOOTMODE__DEBUG){
+					if(thresh_H == Gui_Global->gui__DeltaClap_LowFreq_Thresh_H)			printf("> clap time: %f (LowFreq)\n", t_clap);
+					else if(thresh_H == Gui_Global->gui__DeltaClap_HighFreq_Thresh_H)	printf("> clap time: %f (HighFreq)\n", t_clap);
+					else																printf("> clap time: %f (---)\n", t_clap);
+				}
 				
 				/********************
 				********************/
@@ -439,15 +505,15 @@ void ofApp::StateChart_Clap_LH(STATE_CLAP& StateClap, float thresh_H, float Lev_
 void ofApp::StateChart_Clap_AND(){
 	switch(StateClap_AND){
 		case STATE_CLAP_WAIT:
-			if( (t_clap_L < thresh__t_clap) && (t_clap_H < thresh__t_clap) ){
+			if( (t_clap_L < thresh__t_clap_L) && (t_clap_H < thresh__t_clap_H) ){
 				StateClap_AND = STATE_CLAP_ECHO;
 				
 				/********************
 				send osc to video.app
 				********************/
-#ifndef SJ_RELEASE
-				printf("> Detect Clap: send OSC\n");
-#endif
+				if(BootMode == BOOTMODE__DEBUG){
+					printf("> Detect Clap: send OSC\n");
+				}
 	
 				ofxOscMessage m;
 				m.setAddress("/DetectClap");
@@ -461,8 +527,8 @@ void ofApp::StateChart_Clap_AND(){
 		case STATE_CLAP_ECHO:
 			StateClap_AND = STATE_CLAP_WAIT;
 			
-			t_clap_L = thresh__t_clap + 10;
-			t_clap_H = thresh__t_clap + 10;
+			t_clap_L = thresh__t_clap_L + 10;
+			t_clap_H = thresh__t_clap_H + 10;
 			break;
 	}
 }
@@ -507,10 +573,56 @@ void ofApp::draw(){
 	draw_DeltaEnv_L();
 	draw_DeltaEnv_H();
 	
+	if(b_PauseGraph) draw_CursorAndValue();
+	
 	/********************
 	********************/
 	draw_time();
 	drawGuis();
+	
+	/********************
+	checked time cost:Top of update - End of draw.
+	Result < 3ms
+	********************/
+	if(BootMode == BOOTMODE__DEBUG){
+		if(now < 30.0) fprintf(fp_Log, "%f\n", ofGetElapsedTimef());
+	}
+}
+
+/******************************
+******************************/
+void ofApp::draw_CursorAndValue(){
+	/********************
+	********************/
+	int Cursor_x = mouseX + ofs_x_ReadCursor;
+	int Vbo_id = Cursor_x - Gui_Global->gui__Graph_ofs_x;
+
+	/********************
+	********************/
+	if( (Vbo_id < 0) || (NUM_TIME_POINTS <= Vbo_id) ) return;
+	
+	/********************
+	********************/
+	ofSetColor(255, 0, 0, 255);
+	ofSetLineWidth(1);
+	ofLine(Cursor_x, 0, Cursor_x, ofGetHeight());
+	
+	/********************
+	********************/
+	ofSetColor(100);
+	int ofs_x = 10;
+	int ofs_y = 10;
+	char buf[BUF_SIZE];
+	
+	
+	ReverseFromVbo_DeltaDiff_L(Vbo_id, buf);
+	font[FONT_S].drawString(buf, Cursor_x + ofs_x, ofGetHeight()*4/6 - ofs_y);
+	
+	ReverseFromVbo_DeltaDiff_H(Vbo_id, buf);
+	font[FONT_S].drawString(buf, Cursor_x + ofs_x, ofGetHeight()*5/6 - ofs_y);
+	
+	ReverseFromVbo_StateClap(Vbo_id, buf);
+	font[FONT_S].drawString(buf, Cursor_x + ofs_x, ofGetHeight()*6/6 - ofs_y);
 }
 
 /******************************
@@ -558,7 +670,7 @@ void ofApp::draw_Env_H(){
 		
 		/********************
 		********************/
-		draw_ClapThresh(Gui_Global->gui__Clap_HighFreq_Thresh_L, Gui_Global->gui__Clap_HighFreq_Thresh_H, ofGetWidth() - Gui_Global->gui__Graph_ofs_x, Gui_Global->gui__DispMax_GainEnv_HighFreq);
+		// draw_ClapThresh(Gui_Global->gui__Clap_HighFreq_Thresh_L, Gui_Global->gui__Clap_HighFreq_Thresh_H, ofGetWidth() - Gui_Global->gui__Graph_ofs_x, Gui_Global->gui__DispMax_GainEnv_HighFreq);
 		draw_LevOfEnv(	Gui_Global->gui__Clap_HighFreq_FftFreq_From * Gui_Global->gui__Graph_space, Gui_Global->gui__Clap_HighFreq_FftFreq_To * Gui_Global->gui__Graph_space + Gui_Global->gui__Graph_w * 2,
 						Lev_OfEnvironment_H, ofGetWidth() - Gui_Global->gui__Graph_ofs_x, Gui_Global->gui__DispMax_GainEnv_HighFreq);
 						
@@ -629,7 +741,7 @@ void ofApp::draw_Env_L(){
 		
 		/********************
 		********************/
-		draw_ClapThresh(Gui_Global->gui__Clap_LowFreq_Thresh_L, Gui_Global->gui__Clap_LowFreq_Thresh_H, Gui_Global->gui__w_Graph_EnvL, Gui_Global->gui__DispMax_GainEnv_LowFreq);
+		// draw_ClapThresh(Gui_Global->gui__Clap_LowFreq_Thresh_L, Gui_Global->gui__Clap_LowFreq_Thresh_H, Gui_Global->gui__w_Graph_EnvL, Gui_Global->gui__DispMax_GainEnv_LowFreq);
 		draw_LevOfEnv(	Gui_Global->gui__Clap_LowFreq_FftFreq_From * Gui_Global->gui__Graph_space, Gui_Global->gui__Clap_LowFreq_FftFreq_To * Gui_Global->gui__Graph_space + Gui_Global->gui__Graph_w * 2,
 						Lev_OfEnvironment_L, Gui_Global->gui__w_Graph_EnvL, Gui_Global->gui__DispMax_GainEnv_LowFreq);
 		
@@ -1080,7 +1192,7 @@ void ofApp::audioIn(float *input, int bufferSize, int nChannels)
 	FFT Filtering
 	1 process / block.
 	********************/
-	if(!b_PauseGraph) fft_thread->update__Gain(AudioSample.Left, AudioSample.Right);
+	fft_thread->update__Gain(AudioSample.Left, AudioSample.Right);
 }  
 
 /******************************
@@ -1137,9 +1249,6 @@ void ofApp::keyPressed(int key){
 			
 		case 'p':
 			b_PauseGraph = !b_PauseGraph;
-			if(!b_PauseGraph){ // ReStart.
-				fft_thread->setup();
-			}
 			break;
 			
 		case ' ':
@@ -1154,6 +1263,14 @@ void ofApp::keyPressed(int key){
 		}
 			break;
 			
+		case OF_KEY_RIGHT:
+			ofs_x_ReadCursor++;
+			break;
+			
+		case OF_KEY_LEFT:
+			ofs_x_ReadCursor--;
+			break;
+			
 	}
 }
 
@@ -1164,7 +1281,7 @@ void ofApp::keyReleased(int key){
 
 //--------------------------------------------------------------
 void ofApp::mouseMoved(int x, int y ){
-
+	ofs_x_ReadCursor = 0;
 }
 
 //--------------------------------------------------------------

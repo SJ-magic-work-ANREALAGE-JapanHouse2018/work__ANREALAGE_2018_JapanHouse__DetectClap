@@ -17,6 +17,11 @@
 ************************************************************/
 #define ERROR_MSG(); printf("Error in %s:%d\n", __FILE__, __LINE__);
 
+enum BOOTMODE{
+	BOOTMODE__RELEASE,
+	BOOTMODE__DEBUG,
+};
+
 enum{
 	WIDTH = 1300,
 	HEIGHT = 900,
@@ -87,8 +92,8 @@ public:
 	
 	/* */
 	ofxGuiGroup GuiGroup_DetectClap_LowFreq;
-	ofxFloatSlider gui__Clap_LowFreq_Thresh_L;
-	ofxFloatSlider gui__Clap_LowFreq_Thresh_H;
+	// ofxFloatSlider gui__Clap_LowFreq_Thresh_L;
+	// ofxFloatSlider gui__Clap_LowFreq_Thresh_H;
 	
 	ofxIntSlider gui__Clap_LowFreq_FftFreq_From;
 	ofxIntSlider gui__Clap_LowFreq_FftFreq_To;
@@ -97,8 +102,8 @@ public:
 	
 	/* */
 	ofxGuiGroup GuiGroup_DetectClap_HighFreq;
-	ofxFloatSlider gui__Clap_HighFreq_Thresh_L;
-	ofxFloatSlider gui__Clap_HighFreq_Thresh_H;
+	// ofxFloatSlider gui__Clap_HighFreq_Thresh_L;
+	// ofxFloatSlider gui__Clap_HighFreq_Thresh_H;
 	
 	ofxIntSlider gui__Clap_HighFreq_FftFreq_From;
 	ofxIntSlider gui__Clap_HighFreq_FftFreq_To;
@@ -132,6 +137,7 @@ public:
 /************************************************************
 ************************************************************/
 extern GUI_GLOBAL* Gui_Global;
+extern BOOTMODE BootMode;
 
 extern int GPIO_0;
 extern int GPIO_1;

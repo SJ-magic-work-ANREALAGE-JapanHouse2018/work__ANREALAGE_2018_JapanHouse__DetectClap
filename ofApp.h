@@ -108,7 +108,7 @@ private:
 	/****************************************
 	parameter
 	****************************************/
-	FILE* fp;
+	FILE* fp_Log;
 	
 	/********************
 	********************/
@@ -151,7 +151,8 @@ private:
 	float t_clap_ChangeState_H;
 	float t_clap_L;
 	float t_clap_H;
-	const float thresh__t_clap;
+	const float thresh__t_clap_L;
+	const float thresh__t_clap_H;
 	const float duration_TryClap;
 	
 	ofTrueTypeFont font[NUM_FONT_SIZE];
@@ -159,6 +160,7 @@ private:
 	/********************
 	********************/
 	ofSoundPlayer music;
+	int ofs_x_ReadCursor;
 	
 	/********************
 	Graph
@@ -204,7 +206,7 @@ private:
 	
 	void ReStart();
 	
-	void StateChart_Clap_LH(STATE_CLAP& StateClap, float thresh_H, float Lev_OfEnvironment, float& t_clap_ChangeState, float& t_clap);
+	void StateChart_Clap_LH(STATE_CLAP& StateClap, float thresh_H, float Lev_OfEnvironment, float& t_clap_ChangeState, float& t_clap, float thresh__t_clap);
 	void StateChart_Clap_AND();
 	
 	/********************
@@ -236,12 +238,18 @@ private:
 	void draw_DeltaEnv_L();
 	void draw_DeltaEnv_H();
 	
+	void draw_CursorAndValue();
+	
 	void draw_time();
+	
+	void ReverseFromVbo_DeltaDiff_L(int id, char* buf);
+	void ReverseFromVbo_DeltaDiff_H(int id, char* buf);
+	void ReverseFromVbo_StateClap(int id, char* buf);
 		
 public:
 	/****************************************
 	****************************************/
-	ofApp(int _soundStream_Input_DeviceId, int _soundStream_Output_DeviceId);
+	ofApp(int _BootMode, int _soundStream_Input_DeviceId, int _soundStream_Output_DeviceId);
 	~ofApp();
 	
 	void setup();
