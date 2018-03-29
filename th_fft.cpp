@@ -1,6 +1,7 @@
 /************************************************************
 ************************************************************/
 #include "th_fft.h"
+#include "stdlib.h"
 
 /************************************************************
 ************************************************************/
@@ -112,6 +113,8 @@ double THREAD_FFT::get_LevOfEnv_L()
 	// return get_max_of_Env(Gui_Global->gui__Clap_LowFreq_FftFreq_From, Gui_Global->gui__Clap_LowFreq_FftFreq_To);
 	return get_ave_of_Env(Gui_Global->gui__Clap_LowFreq_FftFreq_From, Gui_Global->gui__Clap_LowFreq_FftFreq_To);
 	// return get_ave_of_Env_around_max(Gui_Global->gui__Clap_LowFreq_FftFreq_From, Gui_Global->gui__Clap_LowFreq_FftFreq_To);
+	
+	// return get_CenterId_of_Env(Gui_Global->gui__Clap_LowFreq_FftFreq_From, Gui_Global->gui__Clap_LowFreq_FftFreq_To);
 }
 
 /******************************
@@ -119,7 +122,8 @@ double THREAD_FFT::get_LevOfEnv_L()
 double THREAD_FFT::get_LevOfEnv_H()
 {
 	// return get_max_of_Env(Gui_Global->gui__Clap_HighFreq_FftFreq_From, Gui_Global->gui__Clap_HighFreq_FftFreq_To);
-	return get_ave_of_Env(Gui_Global->gui__Clap_HighFreq_FftFreq_From, Gui_Global->gui__Clap_HighFreq_FftFreq_To);
+	// return get_ave_of_Env(Gui_Global->gui__Clap_HighFreq_FftFreq_From, Gui_Global->gui__Clap_HighFreq_FftFreq_To);
+	return get_CenterId_of_Env(Gui_Global->gui__Clap_HighFreq_FftFreq_From, Gui_Global->gui__Clap_HighFreq_FftFreq_To);
 }
 
 /******************************
@@ -138,6 +142,59 @@ bool THREAD_FFT::IsInMaskedFreq(int freq_id)
 	}
 	
 	return false;
+}
+
+/******************************
+description
+	昇順
+******************************/
+int THREAD_FFT::double_sort( const void * a , const void * b )
+{
+	if(*(double*)a < *(double*)b){
+		return -1;
+	}else if(*(double*)a == *(double*)b){
+		return 0;
+	}else{
+		return 1;
+	}
+}
+
+/******************************
+******************************/
+double THREAD_FFT::get_CenterId_of_Env(int from, int to)
+{
+	return get_TargetId_of_Env(from, to, 0.5);
+}
+
+/******************************
+description
+	昇順に並べた後、targetRatio(centerの場合、0.5)の位置に来る値を返す.
+******************************/
+double THREAD_FFT::get_TargetId_of_Env(int from, int to, double targetRatio)
+{
+	/********************
+	********************/
+	if((from < 0) || (AUDIO_BUF_SIZE/2 <= from) || (to < 0) || (AUDIO_BUF_SIZE/2 <= to)){
+		ERROR_MSG();
+		std::exit(1);
+	}
+	
+	/********************
+	本手法の時、masked areaは無効.
+	********************/
+	double _Gain_Environment[AUDIO_BUF_SIZE];
+	int id = 0;
+	for(int i = from; i <= to; i++){
+		_Gain_Environment[id] = Gain_Environment[i];
+		id++;
+	}
+	
+	if(id == 0){
+		return -1;
+	}else{
+		qsort(_Gain_Environment, id, sizeof( _Gain_Environment[0] ), double_sort);
+		return _Gain_Environment[int(id * targetRatio)];
+	}
 }
 
 /******************************

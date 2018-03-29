@@ -91,4 +91,3 @@ void GUI_GLOBAL::setup(string GuiName, string FileName, float x, float y)
 	gui.add(&GuiGroup_Graph);
 }
 
-

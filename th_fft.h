@@ -55,6 +55,10 @@ private:
 	double get_max_of_Env(int from, int to);
 	double get_ave_of_Env(int from, int to);
 	double get_ave_of_Env_around_max(int from, int to);
+	double get_CenterId_of_Env(int from, int to);
+	double get_TargetId_of_Env(int from, int to, double targetRatio);
+	static int double_sort( const void * a , const void * b );	
+	
 	void AudioSample_fft_LPF_saveToArray(const vector<float> &AudioSample, double Gain[], float dt);
 	
 	bool IsInMaskedFreq(int freq_id);

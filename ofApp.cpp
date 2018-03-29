@@ -311,7 +311,7 @@ void ofApp::ReverseFromVbo_StateClap(int id, char* buf)
 		
 		VboVal = Vboset_Clap_H.VboVerts[id];
 		if(ofGetHeight()/NUM_SPLIT_DISP/3/2 - ofs < VboVal.y)			sprintf(buf_H, "WAIT_FALL");
-		else if(ofGetHeight()/NUM_SPLIT_DISP/3/2/2 - ofs < VboVal.y)	sprintf(buf_H, "WAIT_CLAP");
+		else if(ofGetHeight()/NUM_SPLIT_DISP/3/2/2 - ofs < VboVal.y)	sprintf(buf_H, "TRY_CLAP");
 		else															sprintf(buf_H, "WAIT_RISE");
 		
 		
