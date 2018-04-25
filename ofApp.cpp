@@ -16,8 +16,13 @@ ofApp::ofApp(int _BootMode, int _soundStream_Input_DeviceId, int _soundStream_Ou
 , StateClap_L(STATE_CLAP_WAIT_RISE)
 , StateClap_H(STATE_CLAP_WAIT_RISE)
 , StateClap_AND(STATE_CLAP_WAIT)
+/*
 , thresh__t_clap_L(0.12)
 , thresh__t_clap_H(0.1)
+*/
+, thresh__t_clap_L(0.15)
+, thresh__t_clap_H(0.15)
+
 , t_clap_L(thresh__t_clap_L + 10)
 , t_clap_H(thresh__t_clap_H + 10)
 , t_clap_ChangeState_L(0)
@@ -861,7 +866,6 @@ void ofApp::draw_monitor(){
 	********************/
 	ofSetColor(30, 30, 30, 255);
 	ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight()/NUM_SPLIT_DISP);
-	ofPopMatrix();
 		
 	/********************
 	********************/
@@ -943,7 +947,6 @@ void ofApp::draw_StateChart_Clap(){
 	********************/
 	ofSetColor(10);
 	ofDrawRectangle(0, ofGetHeight()*5/NUM_SPLIT_DISP, ofGetWidth(), ofGetHeight()/NUM_SPLIT_DISP);
-	ofPopMatrix();
 		
 	/********************
 	********************/
@@ -999,7 +1002,6 @@ void ofApp::draw_DeltaEnv_L(){
 	********************/
 	ofSetColor(30, 30, 30, 255);
 	ofDrawRectangle(0, ofGetHeight()*3/NUM_SPLIT_DISP, ofGetWidth(), ofGetHeight()/NUM_SPLIT_DISP);
-	ofPopMatrix();
 		
 	/********************
 	********************/
@@ -1078,7 +1080,6 @@ void ofApp::draw_DeltaEnv_H(){
 	********************/
 	ofSetColor(0);
 	ofDrawRectangle(0, ofGetHeight()*4/NUM_SPLIT_DISP, ofGetWidth(), ofGetHeight()/NUM_SPLIT_DISP);
-	ofPopMatrix();
 		
 	/********************
 	********************/
